@@ -122,8 +122,17 @@ export default async function (dir: Path) {
           break;
         case "pkgx.config.ts":
           const module = await import(path);
-          const config = module.default
+          const config = module.default;
           await parse_well_formatted_node(config);
+          break;
+        case "pkgx.config.sh":
+          const { stdout } = await new Deno.Command(path.toString(), {
+            stdout: "piped",
+          }).output();
+          const content = new TextDecoder().decode(stdout).trim();
+          await parse_well_formatted_node({
+            dependencies: content.split("\n"),
+          });
           break;
       }
     } else if (isDirectory) {
