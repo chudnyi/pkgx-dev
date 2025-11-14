@@ -120,6 +120,11 @@ export default async function (dir: Path) {
         case "uv.lock":
           pkgs.push({ project: "astral.sh/uv", constraint });
           break;
+        case "pkgx.config.ts":
+          const module = await import(path);
+          const config = module.default
+          await parse_well_formatted_node(config);
+          break;
       }
     } else if (isDirectory) {
       switch (name) {
