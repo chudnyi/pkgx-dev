@@ -242,21 +242,27 @@ export default async function (dir: Path) {
           switch (pkg) {
             case "npm":
               node = {
+                ...node,
                 dependencies: {
+                  ...node.dependencies,
                   "npmjs.com": version,
                 },
               };
               break;
             case "yarn":
               node = {
+                ...node,
                 dependencies: {
+                  ...node.dependencies,
                   "yarnpkg.com": version,
                 },
               };
               break;
             case "pnpm":
               node = {
+                ...node,
                 dependencies: {
+                  ...node.dependencies,
                   "pnpm.io": version,
                 },
               };
@@ -266,11 +272,14 @@ export default async function (dir: Path) {
       }
       if (json?.volta) {
         node = {
+          ...node,
           dependencies: {
             ...(json.volta.node && { "nodejs.org": json.volta.node }),
             ...(json.volta.npm && { "npmjs.com": json.volta.npm }),
             ...(json.volta.yarn && { "yarnpkg.com": json.volta.yarn }),
             ...(json.volta.pnpm && { "pnpm.io": json.volta.pnpm }),
+            // volta have lowest priority
+            ...node.dependencies,
           },
         };
       }
