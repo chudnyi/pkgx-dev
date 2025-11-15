@@ -23,9 +23,7 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
 
   if (dir.isFile() || dir.isSymlink()) {
     await read_YAML_FM(dir);
-  }
-
-  if (dir.isDirectory()) {
+  } else if (dir.isDirectory()) {
     for await (
       const [path, { name, isFile, isSymlink, isDirectory }] of dir.ls()
     ) {
@@ -157,6 +155,8 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
         }
       }
     }
+  } else {
+    throw new Error(`not a directory or file: ${dir}`);
   }
 
   if (
