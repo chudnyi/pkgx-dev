@@ -22,9 +22,10 @@ const parsedArgs = parseArgs(Deno.args, {
     h: "help",
     q: "quiet",
     m: "mode",
+    E: "allow-empty",
   },
   collect: ["quiet"],
-  boolean: ["help", "version", "shellcode", "quiet"],
+  boolean: ["help", "version", "shellcode", "quiet", "allow-empty"],
   string: ["mode"],
   default: {
     "dry-run": false,
@@ -149,7 +150,9 @@ if (parsedArgs.help) {
           );
         } else if (cwd.isDirectory()) {
           console.error("%cno keyfiles found", "color: red");
-          Deno.exit(1);
+          if (!parsedArgs["allow-empty"]) {
+            Deno.exit(1);
+          }
         }
       } else {
         const cwd = Path.cwd().join(subcommand as string);
