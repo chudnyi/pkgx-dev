@@ -13,141 +13,146 @@ import * as JSONC from "jsr:@std/jsonc";
 const { useMoustaches } = hooks;
 
 export default async function (dir: Path) {
-  if (!dir.isDirectory()) {
-    throw new Error(`not a directory: ${dir}`);
-  }
-
   const constraint = new semver.Range("*");
   let has_package_json = false;
 
   const pkgs: PackageRequirement[] = [];
   const env: Record<string, string> = {};
 
-  for await (
-    const [path, { name, isFile, isSymlink, isDirectory }] of dir.ls()
-  ) {
-    if (isFile || isSymlink) {
-      switch (name) {
-        case "deno.json":
-        case "deno.jsonc":
-          await deno(path);
-          break;
-        case ".nvmrc":
-        case ".node-version":
-          await version_file(path, "nodejs.org");
-          break;
-        case ".ruby-version":
-          await version_file(path, "ruby-lang.org");
-          break;
-        case ".python-version":
-          await python_version(path);
-          break;
-        case ".terraform-version":
-          await terraform_version(path);
-          break;
-        case "package.json":
-          await package_json(path);
-          break;
-        case "action.yml":
-        case "action.yaml":
-          await github_actions(path);
-          break;
-        case "Cargo.toml":
-          pkgs.push({ project: "rust-lang.org", constraint });
-          await read_YAML_FM(path); //TODO use dedicated TOML section in preference
-          break;
-        case "skaffold.yaml":
-          pkgs.push({ project: "skaffold.dev", constraint });
-          await skaffold_yaml(path);
-          break;
-        case "go.mod":
-        case "go.sum":
-          pkgs.push({ project: "go.dev", constraint });
-          await read_YAML_FM(path);
-          break;
-        case "requirements.txt":
-        case "pipfile":
-        case "pipfile.lock":
-        case "setup.py":
-          pkgs.push({ project: "pip.pypa.io", constraint });
-          await read_YAML_FM(path);
-          break;
-        case "pyproject.toml":
-          await pyproject(path);
-          break;
-        case "Gemfile":
-          pkgs.push({ project: "ruby-lang.org", constraint });
-          await read_YAML_FM(path);
-          break;
-        case ".yarnrc":
-          pkgs.push({ project: "classic.yarnpkg.com", constraint });
-          await read_YAML_FM(path);
-          break;
-        case "yarn.lock":
-          pkgs.push({ project: "yarnpkg.com", constraint });
-          break;
-        case ".yarnrc.yml":
-          pkgs.push({ project: "yarnpkg.com", constraint });
-          await read_YAML_FM(path);
-          break;
-        case "bun.lock":
-        case "bun.lockb":
-          pkgs.push({ project: "bun.sh", constraint: new semver.Range(">=1") });
-          break;
-        case "pnpm-lock.yaml":
-          pkgs.push({ project: "pnpm.io", constraint });
-          break;
-        case "pixi.toml":
-          pkgs.push({ project: "prefix.dev", constraint });
-          await read_YAML_FM(path);
-          break;
-        case "pkgx.yml":
-        case "pkgx.yaml":
-        case ".pkgx.yml":
-        case ".pkgx.yaml":
-          await parse_well_formatted_node(await path.readYAML());
-          break;
-        case "cdk.json":
-          pkgs.push({ project: "aws.amazon.com/cdk", constraint });
-          break;
-        case "justfile":
-        case "Justfile":
-          pkgs.push({ project: "just.systems", constraint });
-          break;
-        case "Taskfile.yml":
-          pkgs.push({ project: "taskfile.dev", constraint });
-          break;
-        case "uv.lock":
-          pkgs.push({ project: "astral.sh/uv", constraint });
-          break;
-        case "pkgx.config.ts":
-          const module = await import(path);
-          const config = module.default;
-          await parse_well_formatted_node(config);
-          break;
-        case "pkgx.config.sh":
-          const { stdout } = await new Deno.Command(path.toString(), {
-            stdout: "piped",
-          }).output();
-          const content = new TextDecoder().decode(stdout).trim();
-          await parse_well_formatted_node({
-            dependencies: content.split("\n"),
-          });
-          break;
-      }
-    } else if (isDirectory) {
-      switch (name) {
-        case ".git":
-          if (utils.host().platform != "darwin") {
-            pkgs.push({ project: "git-scm.org", constraint });
-          }
-          break;
-        case ".hg":
-          pkgs.push({ project: "mercurial-scm.org", constraint });
-          break;
-        case ".svn":
-          pkgs.push({ project: "apache.org/subversion", constraint });
-          break;
+  if (dir.isFile() || dir.isSymlink()) {
+    await read_YAML_FM(dir);
+  }
+
+  if (dir.isDirectory()) {
+    for await (
+      const [path, { name, isFile, isSymlink, isDirectory }] of dir.ls()
+    ) {
+      if (isFile || isSymlink) {
+        switch (name) {
+          case "deno.json":
+          case "deno.jsonc":
+            await deno(path);
+            break;
+          case ".nvmrc":
+          case ".node-version":
+            await version_file(path, "nodejs.org");
+            break;
+          case ".ruby-version":
+            await version_file(path, "ruby-lang.org");
+            break;
+          case ".python-version":
+            await python_version(path);
+            break;
+          case ".terraform-version":
+            await terraform_version(path);
+            break;
+          case "package.json":
+            await package_json(path);
+            break;
+          case "action.yml":
+          case "action.yaml":
+            await github_actions(path);
+            break;
+          case "Cargo.toml":
+            pkgs.push({ project: "rust-lang.org", constraint });
+            await read_YAML_FM(path); //TODO use dedicated TOML section in preference
+            break;
+          case "skaffold.yaml":
+            pkgs.push({ project: "skaffold.dev", constraint });
+            await skaffold_yaml(path);
+            break;
+          case "go.mod":
+          case "go.sum":
+            pkgs.push({ project: "go.dev", constraint });
+            await read_YAML_FM(path);
+            break;
+          case "requirements.txt":
+          case "pipfile":
+          case "pipfile.lock":
+          case "setup.py":
+            pkgs.push({ project: "pip.pypa.io", constraint });
+            await read_YAML_FM(path);
+            break;
+          case "pyproject.toml":
+            await pyproject(path);
+            break;
+          case "Gemfile":
+            pkgs.push({ project: "ruby-lang.org", constraint });
+            await read_YAML_FM(path);
+            break;
+          case ".yarnrc":
+            pkgs.push({ project: "classic.yarnpkg.com", constraint });
+            await read_YAML_FM(path);
+            break;
+          case "yarn.lock":
+            pkgs.push({ project: "yarnpkg.com", constraint });
+            break;
+          case ".yarnrc.yml":
+            pkgs.push({ project: "yarnpkg.com", constraint });
+            await read_YAML_FM(path);
+            break;
+          case "bun.lock":
+          case "bun.lockb":
+            pkgs.push({
+              project: "bun.sh",
+              constraint: new semver.Range(">=1"),
+            });
+            break;
+          case "pnpm-lock.yaml":
+            pkgs.push({ project: "pnpm.io", constraint });
+            break;
+          case "pixi.toml":
+            pkgs.push({ project: "prefix.dev", constraint });
+            await read_YAML_FM(path);
+            break;
+          case "pkgx.yml":
+          case "pkgx.yaml":
+          case ".pkgx.yml":
+          case ".pkgx.yaml":
+            await parse_well_formatted_node(await path.readYAML());
+            break;
+          case "cdk.json":
+            pkgs.push({ project: "aws.amazon.com/cdk", constraint });
+            break;
+          case "justfile":
+          case "Justfile":
+            pkgs.push({ project: "just.systems", constraint });
+            break;
+          case "Taskfile.yml":
+            pkgs.push({ project: "taskfile.dev", constraint });
+            break;
+          case "uv.lock":
+            pkgs.push({ project: "astral.sh/uv", constraint });
+            break;
+          case "pkgx.config.ts":
+            const module = await import(path);
+            const config = module.default;
+            await parse_well_formatted_node(config);
+            break;
+          case "pkgx.config.sh":
+            const { stdout } = await new Deno.Command(path.toString(), {
+              stdout: "piped",
+            }).output();
+            const content = new TextDecoder().decode(stdout).trim();
+            await parse_well_formatted_node({
+              dependencies: content.split("\n"),
+            });
+            break;
+        }
+      } else if (isDirectory) {
+        switch (name) {
+          case ".git":
+            if (utils.host().platform != "darwin") {
+              pkgs.push({ project: "git-scm.org", constraint });
+            }
+            break;
+          case ".hg":
+            pkgs.push({ project: "mercurial-scm.org", constraint });
+            break;
+          case ".svn":
+            pkgs.push({ project: "apache.org/subversion", constraint });
+            break;
+        }
       }
     }
   }

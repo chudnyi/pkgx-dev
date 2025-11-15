@@ -102,7 +102,7 @@ if (parsedArgs.help) {
             "color: red",
             pkgs.map(utils.pkg.str).join(" "),
           );
-        } else {
+        } else if (cwd.isDirectory()) {
           console.log("%cno keyfiles found", "color: red");
         }
       } else {
@@ -141,7 +141,7 @@ if (parsedArgs.help) {
             "color: green",
             pkgs.map(utils.pkg.str).join(" "),
           );
-        } else {
+        } else if (cwd.isDirectory()) {
           console.error("%cno keyfiles found", "color: red");
           Deno.exit(1);
         }
