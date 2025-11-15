@@ -134,9 +134,10 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
               stdout: "piped",
             }).output();
             const content = new TextDecoder().decode(stdout).trim();
-            await parse_well_formatted_node({
-              dependencies: content.split("\n"),
-            });
+            const dependencies = content.split("\n").filter((l) => l);
+            if (dependencies) {
+              await parse_well_formatted_node({ dependencies });
+            }
             break;
         }
       } else if (isDirectory) {
