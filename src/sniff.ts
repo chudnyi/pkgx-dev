@@ -10,9 +10,11 @@ import {
 import readLines from "libpkgx/utils/read-lines.ts";
 import { parse as parseYaml } from "jsr:@std/yaml";
 import * as JSONC from "jsr:@std/jsonc";
+import { Mode, modePredicate } from "./mode.ts";
+
 const { useMoustaches } = hooks;
 
-export default async function (dir: Path) {
+export default async function (dir: Path, options?: { mode?: Mode }) {
   const constraint = new semver.Range("*");
   let has_package_json = false;
 
@@ -164,7 +166,11 @@ export default async function (dir: Path) {
     pkgs.push({ project: "nodejs.org", constraint });
   }
 
-  return { pkgs, env };
+  const pkgFilter = modePredicate(options.mode);
+  return {
+    pkgs: pkgs.filter(pkgFilter),
+    env,
+  };
 
   //---------------------------------------------- parsers
   async function deno(path: Path) {

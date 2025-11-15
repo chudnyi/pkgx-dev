@@ -1,12 +1,13 @@
 import { Path, utils } from "libpkgx";
 import sniff from "./sniff.ts";
 import shell_escape from "./shell-escape.ts";
+import { Mode } from "./mode.ts";
 
 export default async function (
   cwd: Path,
-  opts: { dryrun: boolean; quiet: boolean },
+  opts: { dryrun: boolean; quiet: boolean; mode?: Mode },
 ) {
-  const snuff = await sniff(cwd);
+  const snuff = await sniff(cwd, { mode: opts.mode });
 
   if (snuff.pkgs.length === 0 && Object.keys(snuff.env).length === 0) {
     console.error("no devenv detected");

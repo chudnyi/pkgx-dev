@@ -11,6 +11,7 @@ import { parseArgs } from "jsr:@std/cli@^1/parse-args";
 import dump from "./src/dump.ts";
 import sniff from "./src/sniff.ts";
 import { walk } from "jsr:@std/fs@1/walk";
+import { parseMode } from "./src/mode.ts";
 
 const parsedArgs = parseArgs(Deno.args, {
   alias: {
@@ -20,13 +21,18 @@ const parsedArgs = parseArgs(Deno.args, {
     v: "version",
     h: "help",
     q: "quiet",
+    m: "mode",
   },
   collect: ["quiet"],
   boolean: ["help", "version", "shellcode", "quiet"],
+  string: ["mode"],
   default: {
     "dry-run": false,
+    mode: "any",
   },
 });
+
+const mode = parseMode(parsedArgs.mode);
 
 if (parsedArgs.help) {
   const { code } = await new Deno.Command("pkgx", {
@@ -63,7 +69,7 @@ if (parsedArgs.help) {
           datadir().join(cwd.string.slice(1), "dev.pkgx.activated").isFile()
         ) {
           //FIXME probably slower than ideal
-          const { pkgs } = await sniff(cwd);
+          const { pkgs } = await sniff(cwd, { mode });
           Deno.exit(pkgs.length == 0 ? 1 : 0);
         } else {
           Deno.exit(1);
@@ -87,7 +93,7 @@ if (parsedArgs.help) {
     case undefined:
       if (Deno.stdout.isTerminal()) {
         const cwd = Path.cwd();
-        const { pkgs } = await sniff(cwd);
+        const { pkgs } = await sniff(cwd, { mode });
         if (
           datadir().join(cwd.string.slice(1), "dev.pkgx.activated").isFile()
         ) {
@@ -107,7 +113,7 @@ if (parsedArgs.help) {
         }
       } else {
         const cwd = Path.cwd();
-        await dump(cwd, { dryrun, quiet });
+        await dump(cwd, { dryrun, quiet, mode });
       }
       break;
 
@@ -131,7 +137,7 @@ if (parsedArgs.help) {
     default: {
       if (Deno.stdout.isTerminal()) {
         const cwd = Path.cwd().join(subcommand as string);
-        const { pkgs } = await sniff(cwd);
+        const { pkgs } = await sniff(cwd, { mode });
         if (pkgs.length > 0) {
           datadir().join(cwd.string.slice(1)).mkdir("p").join(
             "dev.pkgx.activated",
@@ -147,7 +153,7 @@ if (parsedArgs.help) {
         }
       } else {
         const cwd = Path.cwd().join(subcommand as string);
-        await dump(cwd, { dryrun, quiet });
+        await dump(cwd, { dryrun, quiet, mode });
       }
     }
   }
