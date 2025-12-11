@@ -11,7 +11,8 @@ export default async function (
 
   if (snuff.pkgs.length === 0 && Object.keys(snuff.env).length === 0) {
     console.error("no devenv detected");
-    Deno.exit(1);
+    // Deno.exit(1);
+    return;
   }
 
   let env = "";
