@@ -286,7 +286,7 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
             ...(json.volta.yarn && { "yarnpkg.com": json.volta.yarn }),
             ...(json.volta.pnpm && { "pnpm.io": json.volta.pnpm }),
             // volta have lowest priority
-            ...node.dependencies,
+            ...node?.dependencies,
           },
         };
       }
