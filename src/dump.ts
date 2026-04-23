@@ -32,7 +32,9 @@ export default async function (
 
     await cmd.status;
 
-    const stdout = (await cmd.output()).stdout;
+    const {stdout, code} = (await cmd.output());
+    if(code) Deno.exit(code);
+
     env = new TextDecoder().decode(stdout);
   }
 
