@@ -38,7 +38,7 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
             await version_file(path, "nodejs.org");
             break;
           case ".ruby-version":
-            await version_file(path, "ruby-lang.org");
+            await ruby_version_with_rubygems(path);
             break;
           case ".python-version":
             await python_version(path);
@@ -76,10 +76,11 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
           case "pyproject.toml":
             await pyproject(path);
             break;
-          case "Gemfile":
-            pkgs.push({ project: "ruby-lang.org", constraint });
-            await read_YAML_FM(path);
-            break;
+            // 🔴 Debug: возможно вернуть обратно
+            // case "Gemfile":
+            //   pkgs.push({ project: "ruby-lang.org", constraint });
+            //   await read_YAML_FM(path);
+            //   break;
           case ".yarnrc":
             pkgs.push({ project: "classic.yarnpkg.com", constraint });
             await read_YAML_FM(path);
@@ -125,19 +126,10 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
             pkgs.push({ project: "astral.sh/uv", constraint });
             break;
           case "pkgx.config.ts":
-            const module = await import(path);
-            const config = module.default;
-            await parse_well_formatted_node(config);
+            await pkgx_config_ts(path);
             break;
           case "pkgx.config.sh":
-            const { stdout } = await new Deno.Command(path.toString(), {
-              stdout: "piped",
-            }).output();
-            const content = new TextDecoder().decode(stdout).trim();
-            const dependencies = content.split("\n").filter((l) => l);
-            if (dependencies) {
-              await parse_well_formatted_node({ dependencies });
-            }
+            await pkgx_config_sh(path);
             break;
         }
       } else if (isDirectory) {
@@ -167,7 +159,7 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
     pkgs.push({ project: "nodejs.org", constraint });
   }
 
-  const pkgFilter = modePredicate(options.mode);
+  const pkgFilter = modePredicate(options?.mode);
   return {
     pkgs: pkgs.filter(pkgFilter),
     env,
@@ -191,7 +183,9 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
     if (s.startsWith("v")) s = s.slice(1); // v prefix has no effect but is allowed
     if (s.match(/^[0-9]/)) s = `@${s}`; // bare versions are `@`ed
     s = `${project}${s}`;
-    pkgs.push(utils.pkg.parse(s));
+    const requirement = utils.pkg.parse(s);
+    pkgs.push(requirement);
+    return requirement;
   }
 
   async function python_version(path: Path) {
@@ -374,6 +368,68 @@ export default async function (dir: Path, options?: { mode?: Mode }) {
       pkgs.push({ project: "pip.pypa.io", constraint });
     }
     await read_YAML_FM(path);
+  }
+
+  async function pkgx_config_ts(path: Path) {
+    const module = await import(path.toString());
+    const config = module.default;
+    await parse_well_formatted_node(config);
+  }
+
+  async function pkgx_config_sh(path: Path) {
+    const { stdout } = await new Deno.Command(path.toString(), {
+      stdout: "piped",
+    }).output();
+    const content = new TextDecoder().decode(stdout).trim();
+    const dependencies = content.split("\n").filter((l) => l);
+    if (dependencies) {
+      await parse_well_formatted_node({ dependencies });
+    }
+  }
+
+  // Подбираем под версию ruby совместимую версию rubygems
+  async function ruby_version_with_rubygems(path: Path) {
+    const { constraint } = await version_file(path, "ruby-lang.org");
+    const isRubyGemsPresented = pkgs.find(({ project }) =>
+      project === "rubygems.org"
+    );
+    if (isRubyGemsPresented) return;
+    // Добавление совместимой версии rubygems.org к ruby
+    const _constraint = constraint?.toString();
+    const ruby_version =
+      _constraint?.startsWith("@") || _constraint?.startsWith("~") ||
+        _constraint?.startsWith("^")
+        ? _constraint.slice(1)
+        : undefined;
+    if (ruby_version) {
+      const { default: rubygems } = await import("./rubygems.json", {
+        with: { type: "json" },
+      });
+      type RubyVersion = keyof typeof rubygems;
+      const ruby_vers = Object.keys(rubygems);
+      let gems_ver_str;
+      for (let n = 0; n < 3; n++) {
+        let ver_part = ruby_version.split(".").slice(0, 3 - n).join(".");
+        gems_ver_str = rubygems[ver_part as RubyVersion];
+        if (gems_ver_str) break;
+        ver_part = ruby_vers.find((rv) => rv.startsWith(`${ver_part}.`)) ?? "";
+        if (ver_part) {
+          gems_ver_str = rubygems[ver_part as RubyVersion];
+          if (gems_ver_str) break;
+        }
+      }
+      if (gems_ver_str && semver.isValid(gems_ver_str)) {
+        // минимальная версия: '3.2.34' в https://pkgx.dev/pkgs/rubygems.org/
+        const gems_ver_min = semver.parse("3.2.34")!;
+        let gems_ver = semver.parse(gems_ver_str)!;
+        // Если совместимая версия меньше минимальной, используем минимальную
+        if (semver.compare(gems_ver_min, gems_ver!) === 1) {
+          gems_ver = gems_ver_min;
+        }
+        const package_descriptor = `rubygems.org@${gems_ver}`;
+        pkgs.push(utils.pkg.parse(package_descriptor));
+      }
+    }
   }
 
   //---------------------------------------------- YAML FM utils
